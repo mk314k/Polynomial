@@ -7,6 +7,50 @@ from __future__ import annotations
 class Function:
     """_summary_
     """
+    def forward(self, x:float)->float:
+        """
+
+        Args:
+            x (float): _description_
+
+        Returns:
+            float: _description_
+        """
+        return x
+
+    def lderivative(self, x:float, eps=1e-6):
+        """_summary_
+
+        Args:
+            x (float): _description_
+            eps (_type_, optional): _description_. Defaults to 1e-6.
+
+        Returns:
+            _type_: _description_
+        """
+        return (self.forward(x) - self.forward(x-eps))/eps
+    def rderivative(self, x:float, eps=1e-6):
+        """_summary_
+
+        Args:
+            x (float): _description_
+            eps (_type_, optional): _description_. Defaults to 1e-6.
+
+        Returns:
+            _type_: _description_
+        """
+        return (self.forward(x+eps) - self.forward(x))/eps
+    def mderivative(self, x:float, eps=1e-6):
+        """_summary_
+
+        Args:
+            x (float): _description_
+            eps (_type_, optional): _description_. Defaults to 1e-6.
+
+        Returns:
+            _type_: _description_
+        """
+        return (self.forward(x+eps) - self.forward(x-eps))/(2 * eps)
 
 class Polynomial(Function):
     """_summary_
@@ -20,13 +64,10 @@ class Polynomial(Function):
     def __getitem__(self, r):
         if 0<=r<= self.degree:
             return self.coeff[r]
-        else:
-            return 0
+        return 0
     def __setitem__(self, r, r_c):
         if 0<=r<= self.degree:
             self.coeff[r] = r_c
-        else:
-            pass
 
     def __add__(self, p:Polynomial)->Polynomial:
         if isinstance(p, (int, float)):
@@ -152,11 +193,12 @@ class RationalPoly(Function):
     def __add__(self, f):
         if isinstance(f, (int, float, Polynomial)):
             return RationalPoly(self.obl + f, self.num, self.denom)
-        elif isinstance(f, RationalPoly):
+        if isinstance(f, RationalPoly):
             return RationalPoly(
                 self.obl+f.obl,
                 self.num * f.denom + self.denom * f.num,
                 self.denom * f.denom)
+        raise TypeError
     def derivative(self):
         """_summary_
 
