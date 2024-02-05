@@ -61,10 +61,12 @@ class Polynomial(Function):
     def __init__(self, coeff:list[float], reverse_and_copy=True)->None:
         self.coeff = coeff[::-1] if reverse_and_copy else coeff
         self.degree = len(coeff) -1
+
     def __getitem__(self, r):
         if 0<=r<= self.degree:
             return self.coeff[r]
         return 0
+
     def __setitem__(self, r, r_c):
         if 0<=r<= self.degree:
             self.coeff[r] = r_c
