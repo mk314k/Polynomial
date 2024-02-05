@@ -1,0 +1,6 @@
+services:
+  - name: flask-server
+    type: web
+    env: python
+    buildCommand: pip install Flask
+    startCommand: python app.py
