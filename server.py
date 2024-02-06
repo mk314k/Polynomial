@@ -1,8 +1,29 @@
+"""
+_summary_
+
+Returns:
+    _type_: _description_
+"""
 from flask import Flask, request, jsonify
-from src.parser import parse, unparse
-from src.polynomial import Polynomial
+from flask_cors import CORS
+from polynomial import parse, unparse
 
 app = Flask(__name__)
+CORS(app)
+
+@app.route('/test', methods=['POST'])
+def test():
+    """
+    adds two numbers
+
+    Returns:
+        _type_: _description_
+    """
+    data = request.json
+    poly1 = data['num1']
+    poly2 = data['num2']
+    result = poly1 + poly2
+    return jsonify({'result': result}), 200
 
 @app.route('/add', methods=['POST'])
 def add():
@@ -104,4 +125,4 @@ def newton_bisect():
     return jsonify({'result': unparse(result)})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)

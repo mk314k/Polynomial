@@ -1,4 +1,4 @@
-from polynomial import Polynomial
+from .polynomial import Polynomial
 
 
 def parse(coeff:str)->Polynomial:

@@ -2,7 +2,6 @@
 This is the main Polynomial and related function file.
 Author:mk314k
 """
-from __future__ import annotations
 
 class Function:
     """_summary_
@@ -71,7 +70,7 @@ class Polynomial(Function):
         if 0<=r<= self.degree:
             self.coeff[r] = r_c
 
-    def __add__(self, p:Polynomial)->Polynomial:
+    def __add__(self, p):
         if isinstance(p, (int, float)):
             res = Polynomial(self.coeff[::-1])
             res[0] += p
@@ -83,7 +82,7 @@ class Polynomial(Function):
             res[i] = self[i] + p[i]
         return res
 
-    def __sub__(self, p:Polynomial):
+    def __sub__(self, p):
         if isinstance(p, (int, float)):
             res = Polynomial(self.coeff[::-1])
             res[0] -= p
@@ -94,7 +93,7 @@ class Polynomial(Function):
             res[i] = self[i] - p[i]
         return res
 
-    def __mul__(self, p:Polynomial):
+    def __mul__(self, p):
         if isinstance(p, (int, float)):
             coeff = [p*c for c in self.coeff]
             res = Polynomial(coeff, reverse_and_copy=False)
@@ -106,7 +105,7 @@ class Polynomial(Function):
                 res[i + j] += self[i] * p[j]
         return res
 
-    def __div__(self, p:Polynomial):
+    def __div__(self, p):
         if isinstance(p, (int, float)):
             coeff = [c/p for c in self.coeff]
             res = Polynomial(coeff, reverse_and_copy=False)

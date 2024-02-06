@@ -5,17 +5,24 @@ function App() {
   const [result, setResult] = useState<number | null>(null);
 
   const handleAddition = async () => {
-    console.log(result);
-    const response = await fetch('https://polynomial.onrender.com/add', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ num1: 5, num2: 3 }), // Change numbers as needed
-    });
-    const data = await response.json();
-    console.log(response);
-    setResult(data.result);
+    try {
+      const response = await fetch('https://polynomial.onrender.com/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ num1: 5, num2: 3 }), // Adjust numbers as needed
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      setResult(data.result);
+    } catch (error) {
+      console.error('There was a problem with your fetch operation:', error);
+    }
   };
 
   return (
