@@ -28,10 +28,10 @@ def test():
 @app.route('/add', methods=['POST'])
 def add():
     """
-    adds two numbers
+    Adds two numbers provided in the JSON payload.
 
     Returns:
-        _type_: _description_
+        JSON: A JSON response containing the sum of the two numbers.
     """
     data = request.json
     poly1 = parse(data['poly1'])
