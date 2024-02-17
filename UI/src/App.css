@@ -1,0 +1,52 @@
+
+*{
+    margin: 0;
+}
+.flex-horizontal {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.flex-vertical {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+
+#root {
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #ccc;
+    color: #101010;
+    background-size: cover;
+    background-repeat: no-repeat;
+    height: max-content;
+    min-height: 100vh;
+    width: 100vw;
+    background-position: center bottom;
+}
+
+.poly-coeff{
+    width: 40px;
+}
+  
+ .title {
+  font-weight: bolder;
+  font-size: 2em;
+ }
+  
+  .footer{
+    position: fixed;
+    background: #85858538;
+    height: 2.5vh;
+    width: max-content;
+    right: 4vw;
+    border-radius: 5px;
+    color: skyblue;
+  }
+  
