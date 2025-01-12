@@ -233,4 +233,78 @@ Intuitively, an estimate that converges with order $q = 1$ (linear convergence) 
 
 Beyond their local convergence rates, a fundamental limitation shared by all three classical methods is that each solves for only a single local root and provides no global information on how many real roots a polynomial possesses, or whether a polynomial has any real roots at all. To overcome both the initial-guess sensitivity of Newton's method and the single-root limitation of all three algorithms, the remainder of this paper develops a global structural theory of polynomials and culminates in the \textbf{Polynomial Factorization Procedure (PFP)} in Section~\ref{sec_poly}.
 
+\section{Polynomials and Roots}\label{sec_poly_root}
+
+Given a polynomial $p(x) = \sum_{r=0}^n a_r x^r$ with $a_n \neq 0$, scaling the polynomial or translating the independent variable preserves root structure. Specifically, if $q(x) = c \cdot p(ax+b)$ with $a,c \neq 0$, then every root $\alpha$ of $p$ maps to a root $\frac{\alpha - b}{a}$ of $q$. Consequently, we may normalize the leading coefficient $a_n$ to bound the magnitude of all roots.
+
+\begin{proposition}[Cauchy Bound on Root Magnitudes]\label{prop_root_bound}
+    Given a polynomial $p(x) = \sum_{r=0}^n a_r x^r$ with $a_n \neq 0$, all roots of $p$ have magnitude strictly bounded within $[-M_p, M_p]$, where
+    \[
+        M_p = \max\left\{1, \sum_{r=0}^{n-1}\left|\frac{a_r}{a_n}\right|\right\}.
+    \]
+\end{proposition}
+\begin{proof}
+    Consider the monic polynomial $q(x) = x^n + \sum_{r=0}^{n-1}b_r x^r$ where $b_r = \frac{a_r}{a_n}$. Take any root $\alpha$ of $q$. Then
+    \[
+        q(\alpha)=0 \implies |\alpha^n| = \left|\sum_{r=0}^{n-1}b_r\alpha^r\right| \leq \sum_{r=0}^{n-1}|b_r||\alpha|^r.
+    \]
+    If $|\alpha| \geq 1$, then $|\alpha|^r \leq |\alpha|^{n-1}$ for all $0 \leq r \leq n-1$, yielding
+    \[
+        |\alpha|^n \leq |\alpha|^{n-1}\sum_{r=0}^{n-1}|b_r| \implies |\alpha| \leq \sum_{r=0}^{n-1}\left|\frac{a_r}{a_n}\right|.
+    \]
+    Thus either $|\alpha| < 1$ or $|\alpha| \leq \sum_{r=0}^{n-1}\left|\frac{a_r}{a_n}\right|$, which establishes $|\alpha| \leq M_p$.
+\end{proof}
+
+Proposition~\ref{prop_root_bound} restricts the search space for all real roots from the infinite real line $(-\infty, \infty)$ to the finite compact interval $[-M_p, M_p]$. Next, we examine how the critical points of $p(x)$—that is, the roots of the first derivative $p'(x)$—relate to the roots of $p(x)$. Because $p'(x)$ has degree $n - 1$, it is algebraically simpler than $p(x)$, and we first show that all critical points are confined within the exact same bound $[-M_p, M_p]$.
+
+\begin{corollary}
+    All critical points of $p(x)$ are also bounded within $[-M_p, M_p]$.
+\end{corollary}
+\begin{proof}
+    Since $p'(x) = \sum_{r=1}^{n} r a_r x^{r-1}$, Proposition~\ref{prop_root_bound} bounds all roots of $p'(x)$ within $[-M_{p'}, M_{p'}]$, where
+    \[
+        M_{p'} = \max\left\{1, \sum_{r=1}^{n-1}\left|\frac{r a_r}{n a_n}\right|\right\} \leq \max\left\{1, \sum_{r=0}^{n-1}\left|\frac{a_r}{a_n}\right|\right\} = M_p.
+    \]
+\end{proof}
+
+Beyond sharing the same outer magnitude bound, roots and critical points interlace and form strict local boundaries for one another. Recall that a polynomial of degree $n$ has at most $n$ real roots and at most $n - 1$ critical points. The following proposition establishes the reverse relationship: the number of distinct real roots places a strict lower bound on the number of real critical points.
+
+\begin{proposition}\label{prop_root}
+    There is always a critical point between any two distinct real roots of $p(x)$. Moreover, if $p(x)$ has $k$ distinct real roots, it has at least $k-1$ real critical points.
+\end{proposition}
+\begin{proof}
+    By Rolle's Theorem (a special case of the Mean Value Theorem), for any two roots $a < b$ with $p(a) = p(b) = 0$, there exists $c \in (a,b)$ such that $p'(c) = \frac{p(b)-p(a)}{b-a} = 0$. Applying this across $k$ sorted roots $\alpha_1 < \alpha_2 < \dots < \alpha_k$ yields at least $k-1$ critical points.
+\end{proof}
+
+While the converse of Proposition~\ref{prop_root} does not always hold—a polynomial can possess critical points without having any real roots—Proposition~\ref{prop_root} immediately implies that critical points partition the real line into monotonic segments, each of which can contain at most one root.
+
+\begin{corollary}\label{cor_root}
+    There can be at most one root between two consecutive critical points (CCPs).
+\end{corollary}
+\begin{proof}
+    Suppose there were more than one root strictly between two consecutive critical points $c_1 < c_2$. Then by Proposition~\ref{prop_root}, there would exist at least one critical point strictly between those two roots, and hence strictly between $c_1$ and $c_2$, contradicting the assumption that $c_1$ and $c_2$ are consecutive critical points.
+\end{proof}
+
+Together, Proposition~\ref{prop_root} and Corollary~\ref{cor_root} show that consecutive critical points $(c_1, c_2)$ isolate individual simple roots. To determine whether a given pair of CCPs actually contains a root, we invoke the Intermediate Value Theorem: since $p(x)$ is continuous and strictly monotonic on $[c_1, c_2]$, a simple root $\alpha \in (c_1, c_2)$ exists if and only if $p(c_1)$ and $p(c_2)$ have opposite signs. This observation also fixes the relative signs of $p(x)$ and $p'(x)$ on either side of $\alpha$.
+
+\begin{proposition}\label{prop_sign}
+    Given an interval of two CCPs $(c_1, c_2)$ containing a simple root $\alpha$, $p(x)$ and $p'(x)$ have opposite signs within $[c_1, \alpha)$ and the same sign within $(\alpha, c_2]$.
+\end{proposition}
+\begin{proof}
+    By the Intermediate Value Theorem, $p$ changes sign at $\alpha$, while $p'$ maintains a constant nonzero sign on $(c_1, c_2)$. For $x = \alpha + \epsilon \in (\alpha, c_2]$ with $\epsilon > 0$, $p'(\alpha) = \lim_{\epsilon \to 0^+} \frac{p(\alpha+\epsilon) - p(\alpha)}{\epsilon} = \lim_{\epsilon \to 0^+} \frac{p(x)}{\epsilon}$, so $p(x)$ and $p'(x)$ share the same sign on $(\alpha, c_2]$ and opposite signs on $[c_1, \alpha)$.
+\end{proof}
+
+Proposition~\ref{prop_sign} characterizes any root $\alpha$ that lies strictly between two consecutive critical points. However, what if a critical point is itself a root of $p(x)$? At such a point, $p(\alpha) = p'(\alpha) = 0$, and the graph of $p(x)$ is tangent to the $x$-axis as if multiple roots coincided at $\alpha$. We formalize this phenomenon through the concept of root multiplicity and prove that derivative multiplicity coincides exactly with algebraic factor multiplicity.
+
+\begin{define}[Multiplicity]
+    A value $\alpha$ is a root of $p(x)$ with multiplicity $k \geq 1$ if $p^{(l)}(\alpha) = 0$ for all $0 \leq l < k$ and $p^{(k)}(\alpha) \neq 0$.
+\end{define}
+
+\begin{lemma}\label{lemma_rep}
+    A root $\alpha$ has multiplicity $k$ if and only if $p(x) = (x-\alpha)^k q(x)$ with $q(\alpha) \neq 0$.
+\end{lemma}
+\begin{proof}
+    If $p(x) = (x-\alpha)^k q(x)$ with $q(\alpha) \neq 0$, repeated differentiation via the product rule yields $p^{(l)}(\alpha) = 0$ for $0 \leq l < k$ and $p^{(k)}(\alpha) = k! q(\alpha) \neq 0$. Conversely, induction on $k$ using $p'(x) = (x-\alpha)^{k-1} \tilde{q}(x)$ establishes that $\alpha$ is a $k$-fold factor of $p(x)$.
+\end{proof}
+
 \end{document}
