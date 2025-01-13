@@ -307,4 +307,97 @@ Proposition~\ref{prop_sign} characterizes any root $\alpha$ that lies strictly b
     If $p(x) = (x-\alpha)^k q(x)$ with $q(\alpha) \neq 0$, repeated differentiation via the product rule yields $p^{(l)}(\alpha) = 0$ for $0 \leq l < k$ and $p^{(k)}(\alpha) = k! q(\alpha) \neq 0$. Conversely, induction on $k$ using $p'(x) = (x-\alpha)^{k-1} \tilde{q}(x)$ establishes that $\alpha$ is a $k$-fold factor of $p(x)$.
 \end{proof}
 
+\section{Newton's Method}\label{sec_newt}
+
+Building upon the structural relationship between roots and critical points established in Section~\ref{sec_poly_root}, we now analyze Newton's method in detail. Geometrically, given an iterate $x_k$, Newton's method constructs the tangent line to $f(x)$ at $(x_k, f(x_k))$ with slope $f'(x_k)$ and solves for its $x$-intercept $(x_{k+1}, 0)$:
+\[
+    f'(x_k) = \frac{f(x_k) - 0}{x_k - x_{k+1}} \implies x_{k+1} = x_k - \frac{f(x_k)}{f'(x_k)}.
+\]
+To study the global behavior of this recurrence across $\mathbb{R}$, we view the Newton update step as a rational dynamical map $\Psi_f(x)$ and analyze its iterated sequence $\Psi_f^n(x_0)$.
+
+\begin{define}[Newton's Rational Function]
+    Given a differentiable function $f$, we define Newton's function $\Psi_f(x) = x - \frac{f(x)}{f'(x)}$ and its $n$-fold composition $\Psi_f^n(x) = \Psi_f(\Psi_f^{n-1}(x))$.
+\end{define}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.58\linewidth]{x4x.png}
+    \caption{Polynomial $p(x) = x^4 + x$ (blue), Newton's function $\Psi_p(x)$ (green), and 10th iterate $\Psi_p^{10}(x)$ (purple) converging to the roots $\{-1, 0\}$.}
+    \label{fig:newt_x4x}
+\end{figure}
+
+\begin{proposition}\label{prop_newt}
+    For any polynomial $p$, if the sequence $x_n = \Psi_p^n(x_0)$ converges to a finite limit $\alpha$ with $p'(\alpha) \neq 0$, then $\alpha$ is a root of $p$.
+\end{proposition}
+\begin{proof}
+    Rearranging $x_{n+1} = x_n - \frac{p(x_n)}{p'(x_n)}$ gives $p(x_n) = p'(x_n)(x_n - x_{n+1})$. Taking $n \to \infty$, since $x_n - x_{n+1} \to 0$ and $p'(x_n) \to p'(\alpha)$, we obtain $p(\alpha) = \lim_{n\to\infty} p(x_n) = 0$.
+\end{proof}
+
+Proposition~\ref{prop_newt} guarantees that whenever the sequence $\Psi_p^n(x_0)$ converges, its limit is necessarily a root of $p(x)$. However, as illustrated by the vertical asymptote in Figure~\ref{fig:newt_x4x}, $\Psi_p(x)$ is undefined at critical points where $p'(x) = 0$ and does not converge for every starting point $x_0 \in \mathbb{R}$. To establish reliable convergence, we first identify a sufficient monotonicity condition on an interval $[a,b]$ containing $\alpha$, and then prove that such a monotonic basin of attraction exists around every simple real root.
+
+\begin{lemma}[Monotone Basin Lemma]\label{lemma_root_interval}
+    If a polynomial $p$ is monotonic and $\Psi_p$ is monotonically increasing on an interval $[a,b]$ containing a root $\alpha$, then $\forall x_0 \in (a,b)$, $\Psi_p^n(x_0) \to \alpha$.
+\end{lemma}
+\begin{proof}
+    For $x \in (a, \alpha)$, Proposition~\ref{prop_sign} implies $\frac{p(x)}{p'(x)} < 0$, so $x < \Psi_p(x) \leq \Psi_p(\alpha) = \alpha$. Thus $\Psi_p^n(x)$ is monotonically increasing and bounded above by $\alpha$. Symmetrically, for $x \in (\alpha, b)$, $\frac{p(x)}{p'(x)} > 0 \implies \alpha \leq \Psi_p(x) < x$, so $\Psi_p^n(x)$ is monotonically decreasing and bounded below by $\alpha$. By the Monotone Convergence Theorem and Proposition~\ref{prop_newt}, both converge to $\alpha$.
+\end{proof}
+
+We now prove one of the central structural results for Newton's method: around every simple root $\alpha$, partitioning its bounding critical-point interval $[c_\alpha, c'_\alpha]$ by the inflection points of $p(x)$ (where $p''(\gamma) = 0$) yields a guaranteed-convergent sub-interval satisfying the hypotheses of Lemma~\ref{lemma_root_interval}.
+
+\begin{proposition}[Guaranteed Convergent Sub-Interval]\label{prop_root_interval}
+    Given a polynomial $p$, for every simple real root $\alpha$, there exists an open interval $(a,b)$ with $a \neq b$ containing $\alpha$ (or having $\alpha$ as a monotone endpoint) such that $\forall x_0 \in (a,b)$, $\Psi_p^n(x_0) \to \alpha$.
+\end{proposition}
+\begin{proof}
+    Suppose $p$ has $k$ distinct real roots $\alpha_1 < \alpha_2 < \dots < \alpha_k$. By Proposition~\ref{prop_root}, any interior simple root $\alpha \in \{\alpha_2, \dots, \alpha_{k-1}\}$ is bounded by consecutive critical points $I_\alpha = [c_\alpha, c'_\alpha]$, on which $p(x)$ is strictly monotonic and $p'(x)$ maintains a constant sign $s \in \{+1, -1\}$. Let $\gamma_1 < \dots < \gamma_r$ be the inflection points ($p''(\gamma_i) = 0$) in $I_\alpha$, and set $\gamma_0 = c_\alpha, \gamma_{r+1} = c'_\alpha$. By the Intermediate Value Theorem, there is a unique sub-interval $[\gamma_t, \gamma_{t+1}]$ containing $\alpha$. By Proposition~\ref{prop_sign}, $p(x)$ has sign $-s$ on $[\gamma_t, \alpha)$ and sign $+s$ on $(\alpha, \gamma_{t+1}]$. Since $p''(x)$ has constant nonzero sign on $(\gamma_t, \gamma_{t+1})$:
+    \begin{itemize}
+        \item If $\operatorname{sign}(p'') = +s$ on $(\gamma_t, \gamma_{t+1})$, then $p(x)$ and $p''(x)$ share the same sign on $(\alpha, \gamma_{t+1}]$.
+        \item If $\operatorname{sign}(p'') = -s$ on $(\gamma_t, \gamma_{t+1})$, then $p(x)$ and $p''(x)$ share the same sign on $[\gamma_t, \alpha)$.
+    \end{itemize}
+    On whichever sub-interval $p(x)$ and $p''(x)$ share the same sign, the derivative of Newton's map satisfies
+    \[
+        \Psi'_p(x) = \frac{p(x)p''(x)}{(p'(x))^2} > 0,
+    \]
+    so $\Psi_p$ is strictly increasing and $p$ is monotonic. By Lemma~\ref{lemma_root_interval}, $\Psi_p^n(x_0) \to \alpha$ monotonically for every $x_0$ in that sub-interval. The exterior roots $\alpha_1 \in (-M_p, c_1)$ and $\alpha_k \in (c_{\text{last}}, M_p)$ follow identically.
+\end{proof}
+
+Motivated by Proposition~\ref{prop_root_interval}, Algorithm~\ref{alg:newton_init} selects a guaranteed-convergent initial guess $x_0$ inside any sign-changing critical-point bracket $[c_1, c_2]$ using the inflection points $D = \{\gamma_1, \dots, \gamma_r\} \subset [c_1, c_2]$.
+
+\begin{algorithm}[H]
+    \caption{Inflection-Guided Initial Guess for Newton's Method}\label{alg:newton_init}
+    \KwData{Polynomial $p(x)$, consecutive critical points $c_1 < c_2$ with $p(c_1)p(c_2) < 0$, sorted inflection points $D = (\gamma_1, \dots, \gamma_r)$ in $(c_1, c_2)$}
+    \KwResult{Guaranteed-convergent initial guess $x_0$}
+    Let $s = \operatorname{sign}\left(p'\left(\frac{c_1+c_2}{2}\right)\right)$\;
+    Form partition endpoints $P = [c_1, \gamma_1, \gamma_2, \dots, \gamma_r, c_2]$\;
+    \For{each adjacent pair $(a,b)$ in $P$}{
+        \If{$p(a) \cdot p(b) \leq 0$}{
+            \eIf{$\operatorname{sign}\left(p''\left(\frac{a+b}{2}\right)\right) == s$}{
+                \Return $b$\;
+            }{
+                \Return $a$\;
+            }
+        }
+    }
+\end{algorithm}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.58\linewidth]{newt_comp.png}
+    \caption{Polynomial $p(x) = (x-2)^2(x+1) - 1 = x^3 - 3x^2 + 3$ (blue), second derivative $p''(x)$ (purple dashed, inflection at $\gamma=1$), and $\Psi_p(x)$ (green).}
+    \label{fig:newt_comp}
+\end{figure}
+
+Even though Proposition~\ref{prop_root_interval} and Algorithm~\ref{alg:newton_init} guarantee that every simple root possesses a convergent basin, Figure~\ref{fig:newt_comp} shows that starting points chosen outside this basin can fail to converge even when $p'(x_0) \neq 0$. One notable failure mechanism is the presence of periodic orbits: for example, on $p(x) = x^3 - 2x + 2$, Newton's map $\Psi_p(x) = x - \frac{x^3 - 2x + 2}{3x^2 - 2}$ satisfies $\Psi_p(0) = 1$ and $\Psi_p(1) = 0$, trapping the iterates in a period-$2$ cycle $\{0, 1\}$. More generally, a set of points $\{x_1, \dots, x_k\}$ forms a $k$-cycle orbit for $p$ if $\Psi_p(x_i) = x_{i+1}$ for $1 \leq i < k$ and $\Psi_p(x_k) = x_1$. Despite these global hazards outside the monotone basin, Newton's method remains the method of choice once properly initialized because of its rapid quadratic convergence on simple roots, which we establish next.
+
+\begin{theorem}[Order of Convergence of Newton's Method]
+    When $x_n = \Psi_p^n(x_0) \to \alpha$, Newton's method converges quadratically (order $2$) with asymptotic constant $\mu = \left|\frac{p''(\alpha)}{2p'(\alpha)}\right|$ if $\alpha$ is a simple root ($k=1$), and linearly (order $1$) with rate $1 - \frac{1}{k}$ if $\alpha$ has multiplicity $k > 1$.
+\end{theorem}
+\begin{proof}
+    Let $e_n = x_n - \alpha$. Expanding $p(x_n)$ and $p'(x_n)$ via Taylor series around $\alpha$ of multiplicity $k$ gives
+    \[
+        e_{n+1} = e_n - \frac{\frac{p^{(k)}(\alpha)}{k!}e_n^k + \frac{p^{(k+1)}(\alpha)}{(k+1)!}e_n^{k+1} + \mathcal{O}(e_n^{k+2})}{\frac{p^{(k)}(\alpha)}{(k-1)!}e_n^{k-1} + \frac{p^{(k+1)}(\alpha)}{k!}e_n^k + \mathcal{O}(e_n^{k+1})}
+        = e_n\left(1 - \frac{1}{k}\right) + e_n^2 \frac{p^{(k+1)}(\alpha)}{k(k+1)p^{(k)}(\alpha)} + \mathcal{O}(e_n^3).
+    \]
+    When $k=1$, the linear term vanishes and $\lim_{n\to\infty} \frac{|e_{n+1}|}{|e_n|^2} = \left|\frac{p''(\alpha)}{2p'(\alpha)}\right|$ (order $2$). When $k > 1$, $\lim_{n\to\infty} \frac{|e_{n+1}|}{|e_n|} = 1 - \frac{1}{k}$ (order $1$).
+\end{proof}
+
 \end{document}
