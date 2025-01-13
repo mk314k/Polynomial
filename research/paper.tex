@@ -400,4 +400,41 @@ Even though Proposition~\ref{prop_root_interval} and Algorithm~\ref{alg:newton_i
     When $k=1$, the linear term vanishes and $\lim_{n\to\infty} \frac{|e_{n+1}|}{|e_n|^2} = \left|\frac{p''(\alpha)}{2p'(\alpha)}\right|$ (order $2$). When $k > 1$, $\lim_{n\to\infty} \frac{|e_{n+1}|}{|e_n|} = 1 - \frac{1}{k}$ (order $1$).
 \end{proof}
 
+\section{Secant Method}\label{sec_sec}
+
+The Secant method offers a practical compromise between Newton's method and derivative-free bracketing by replacing the analytical derivative $f'(x_n)$ with the finite difference quotient across the two most recent iterates:
+\begin{equation}\label{eq_sec}
+    x_{n+1} = x_n - f(x_n)\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}.
+\end{equation}
+While Equation~\eqref{eq_sec} requires no derivative evaluations, it requires $f(x_n) \neq f(x_{n-1})$ at every step so that the secant line intersects the $x$-axis. Remarkably, avoiding the derivative evaluation reduces the convergence order only slightly—from $2$ down to the golden ratio $\phi = \frac{1+\sqrt{5}}{2} \approx 1.618$.
+
+\begin{theorem}[Golden Ratio Convergence of the Secant Method]
+    If the secant sequence $x_n$ converges to a simple root $\alpha$ where $f'(\alpha) \neq 0$ and $f''(\alpha) \neq 0$, then its order of convergence is the golden ratio $\phi = \frac{1+\sqrt{5}}{2} \approx 1.618034$.
+\end{theorem}
+\begin{proof}
+    Let $e_n = x_n - \alpha$. Substituting $x_n = \alpha + e_n$ into Equation~\eqref{eq_sec} and expanding $f(\alpha + e_n) = f'(\alpha)e_n + \frac{1}{2}f''(\alpha)e_n^2 + \mathcal{O}(e_n^3)$ yields
+    \[
+        e_{n+1} = \frac{e_{n-1}f(x_n) - e_n f(x_{n-1})}{f(x_n) - f(x_{n-1})}
+        = \left(\frac{x_n - x_{n-1}}{f(x_n) - f(x_{n-1})}\right)\left(\frac{f(x_n)/e_n - f(x_{n-1})/e_{n-1}}{e_n - e_{n-1}}\right) e_n e_{n-1}.
+    \]
+    As $n \to \infty$, the first factor approaches $\frac{1}{f'(\alpha)}$ and the second approaches $\frac{1}{2}f''(\alpha)$, so
+    \[
+        e_{n+1} \approx C e_n e_{n-1}, \quad \text{where } C = \frac{f''(\alpha)}{2f'(\alpha)}.
+    \]
+    Taking $g_n = \log|C e_n|$ gives the Fibonacci recurrence $g_{n+1} \approx g_n + g_{n-1}$, whose consecutive ratio satisfies $\lim_{n\to\infty} \frac{g_{n+1}}{g_n} = \phi = \frac{1+\sqrt{5}}{2}$. Consequently, $\lim_{n\to\infty} \frac{|e_{n+1}|}{|e_n|^\phi} = |C|^{\phi - 1}$.
+\end{proof}
+
+\section{Bisection Method}\label{sec_bis}
+
+Unlike Newton's method and the secant method, which extrapolate tangent or secant lines and can jump outside the search domain, the Bisection method is a pure bracketing scheme based directly on the Intermediate Value Theorem. Given a bracket $[l_0, r_0]$ across which $f(l_0)$ and $f(r_0)$ have opposite signs, the midpoint $x_n = \frac{l_n + r_n}{2}$ is guaranteed to halve the uncertainty interval at every step.
+
+\begin{theorem}[Linear Convergence of the Bisection Method]
+    If the bisection method is initialized on a sign-changing bracket $[l_0, r_0]$ with $f(l_0)f(r_0) < 0$, the interval length after $n$ iterations is $r_n - l_n = \frac{r_0 - l_0}{2^n}$, and the midpoint sequence converges linearly (order $q = 1$) with asymptotic constant $\mu = \frac{1}{2}$.
+\end{theorem}
+\begin{proof}
+    At each step, the bracket width is halved: $r_{n+1} - l_{n+1} = \frac{1}{2}(r_n - l_n) = \frac{r_0 - l_0}{2^{n+1}}$. Thus the worst-case error bound satisfies $\lim_{n\to\infty} \frac{r_{n+1} - l_{n+1}}{r_n - l_n} = \frac{1}{2}$, establishing linear convergence of order $1$ in $\mathcal{O}(\log_2((r_0 - l_0)/\varepsilon))$ evaluations.
+\end{proof}
+
+While the bisection method is unconditionally reliable on any sign-changing bracket, it cannot detect roots of even multiplicity (such as $x = 0$ in $f(x) = x^4$, where $f(x) \geq 0$ everywhere) because the polynomial does not change sign across such roots.
+
 \end{document}
