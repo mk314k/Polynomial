@@ -437,4 +437,58 @@ Unlike Newton's method and the secant method, which extrapolate tangent or secan
 
 While the bisection method is unconditionally reliable on any sign-changing bracket, it cannot detect roots of even multiplicity (such as $x = 0$ in $f(x) = x^4$, where $f(x) \geq 0$ everywhere) because the polynomial does not change sign across such roots.
 
+\section{Polynomial Factorization Procedure (PFP)}\label{sec_poly}
+
+In Sections~\ref{sec_newt}--\ref{sec_bis}, we observed complementary strengths and weaknesses across the three classical algorithms: Newton's method achieves rapid quadratic convergence ($q = 2$) when initialized inside a monotone basin, but can oscillate or diverge from arbitrary starting guesses; the bisection method is globally reliable across sign-changing brackets, but converges slowly ($q = 1$) and misses even-multiplicity roots; and all three methods find only a single local root rather than the complete root set of a polynomial.
+
+By combining Proposition~\ref{prop_root_bound} (Cauchy root bound $M_p$), Lemma~\ref{lemma_rep} (all multiple roots occur at critical points $f'(c_i) = 0$ with multiplicity $m_i + 1$), Corollary~\ref{cor_root} (at most one simple root lies strictly between consecutive critical points), and Algorithm~\ref{alg:newton_init} (inflection-guided Newton initialization), we synthesize the complete \textbf{Polynomial Factorization Procedure (PFP)} in Algorithm~\ref{alg:pfp}.
+
+\begin{algorithm}[H]
+\caption{Polynomial Factorization Procedure (PFP)}\label{alg:pfp}
+\KwData{Polynomial $f(x) = \sum_{r=0}^n a_r x^r$ with degree $n \geq 1$}
+\KwResult{List of all real roots $\{(\alpha_i, m_i)\}$ with exact multiplicities}
+\If{$\deg(f) == 1$}{
+    \Return $\{(-a_0 / a_1, 1)\}$\;
+}
+\If{$\deg(f) == 2$}{
+    Solve quadratic discriminant $\Delta = a_1^2 - 4a_2 a_0$ and return real root(s) with multiplicity\;
+}
+Recursively call $\operatorname{PFP}(f')$ to obtain critical points $c_1 < c_2 < \dots < c_k$ with multiplicities $m_1, \dots, m_k$\;
+Recursively call $\operatorname{PFP}(f'')$ to obtain inflection points $d_1 < d_2 < \dots < d_s$\;
+Compute Cauchy bound $M_f = \max\left\{1, \sum_{r=0}^{n-1} |a_r / a_n|\right\} + 1$\;
+Initialize root list $R \gets [\,]$\;
+\For{each critical point $(c_i, m_i)$}{
+    \If{$|f(c_i)| < \varepsilon_{\text{root}}$}{
+        Append $(c_i, m_i + 1)$ to $R$\;
+    }
+}
+Form open monotone intervals $I_0 = (-M_f, c_1), I_1 = (c_1, c_2), \dots, I_k = (c_k, M_f)$\;
+\For{each interval $I_j = (a, b)$}{
+    Shrink endpoints slightly away from critical roots and check sign change $f(a) \cdot f(b) < 0$\;
+    \If{$f(a) \cdot f(b) < 0$}{
+        Select initial guess $x_0$ via Algorithm~\ref{alg:newton_init} using inflection points $D_j = \{d \in (a,b)\}$\;
+        Run safeguarded Newton-Bisection from $x_0$ on $[a,b]$ to converge to simple root $\alpha$\;
+        Append $(\alpha, 1)$ to $R$\;
+    }
+}
+\Return sorted root list $R$\;
+\end{algorithm}
+
+\subsection*{Worked Example: $f(x) = x^3 + x^2$}
+First, $f'(x) = 3x^2 + 2x$ has roots $c_1 = -\frac{2}{3}$ and $c_2 = 0$. Evaluating $f$ at the critical points gives $f(-\frac{2}{3}) = \frac{4}{27} \neq 0$ and $f(0) = 0$. Since $f'(0) = 0$ and $f''(0) = 2 \neq 0$, PFP records $\alpha_2 = 0$ with multiplicity $2$. Next, using the Cauchy bound $M_f = 2$, PFP partitions $[-2, 2]$ into $[-2, -\frac{2}{3}]$, $[-\frac{2}{3}, 0]$, and $[0, 2]$. Only $[-2, -\frac{2}{3}]$ exhibits a sign change ($f(-2) = -4 < 0 < f(-\frac{2}{3}) = \frac{4}{27}$), where inflection-guided Newton's method rapidly converges to the simple root $\alpha_1 = -1$ (multiplicity $1$), yielding the exact factorization $f(x) = x^2(x+1)$.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.58\linewidth]{PFPexample.png}
+    \caption{Polynomial Factorization Procedure (PFP) segmenting $f(x) = x^3 + x^2$ by critical points $c_1 = -2/3$ and $c_2 = 0$.}
+    \label{fig:pfp_ex}
+\end{figure}
+
+\begin{theorem}[Completeness and Precision of PFP]
+    For any real polynomial $f(x)$, the Polynomial Factorization Procedure isolates and approximates all real roots along with their exact multiplicities.
+\end{theorem}
+\begin{proof}
+    By Proposition~\ref{prop_root_bound}, all real roots lie within $(-M_f, M_f)$. By Lemma~\ref{lemma_rep}, every root of multiplicity $m > 1$ is a root of $f'(x)$ of multiplicity $m - 1$ and is therefore detected at the critical-point test $|f(c_i)| = 0$. By Corollary~\ref{cor_root}, at most one simple root can lie strictly between two consecutive critical points $c_i < c_{i+1}$, and because $f$ is strictly monotonic on $(c_i, c_{i+1})$, a simple root exists in $(c_i, c_{i+1})$ if and only if $f$ changes sign across the interval. Finally, Proposition~\ref{prop_root_interval} guarantees that Algorithm~\ref{alg:newton_init} selects an initial guess in the monotone basin of attraction, ensuring quadratic convergence to each simple root.
+\end{proof}
+
 \end{document}
