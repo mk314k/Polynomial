@@ -491,4 +491,110 @@ First, $f'(x) = 3x^2 + 2x$ has roots $c_1 = -\frac{2}{3}$ and $c_2 = 0$. Evaluat
     By Proposition~\ref{prop_root_bound}, all real roots lie within $(-M_f, M_f)$. By Lemma~\ref{lemma_rep}, every root of multiplicity $m > 1$ is a root of $f'(x)$ of multiplicity $m - 1$ and is therefore detected at the critical-point test $|f(c_i)| = 0$. By Corollary~\ref{cor_root}, at most one simple root can lie strictly between two consecutive critical points $c_i < c_{i+1}$, and because $f$ is strictly monotonic on $(c_i, c_{i+1})$, a simple root exists in $(c_i, c_{i+1})$ if and only if $f$ changes sign across the interval. Finally, Proposition~\ref{prop_root_interval} guarantees that Algorithm~\ref{alg:newton_init} selects an initial guess in the monotone basin of attraction, ensuring quadratic convergence to each simple root.
 \end{proof}
 
+\section{Algorithmic Optimizations, Tighter Root Bounds, and Complexity Analysis}\label{sec_opt}
+
+While Algorithm~\ref{alg:pfp} is mathematically complete, a naive implementation exhibits three practical bottlenecks: (i) the $\ell_1$ Cauchy bound $M_p$ can overestimate root magnitudes when many coefficients are nonzero; (ii) selecting a critical point $x_0 \in \{c_1, c_2\}$ as an endpoint in Algorithm~\ref{alg:newton_init} encounters a vanishing derivative $p'(x_0) = 0$ on the first step; and (iii) invoking $\operatorname{PFP}(f')$ and $\operatorname{PFP}(f'')$ as independent recursive calls induces an exponential Fibonacci call tree $T(n) = T(n-1) + T(n-2) = \Theta(\phi^n)$. In this section, we resolve all three limitations with provably optimal refinements.
+
+\subsection{Tighter $\ell_\infty$ Cauchy and Fujiwara Radical Bounds}
+
+\begin{proposition}[$\ell_\infty$ Cauchy and Fujiwara Root Bounds]\label{prop_fujiwara}
+    For any polynomial $p(x) = \sum_{r=0}^n a_r x^r$ with $a_n \neq 0$, every root $\alpha \in \mathbb{C}$ satisfies $|\alpha| \leq M_{\text{F}}(p)$ and $|\alpha| \leq M_\infty(p)$, where
+    \[
+        M_\infty(p) = 1 + \max_{0 \leq r \leq n-1}\left|\frac{a_r}{a_n}\right|, \qquad
+        M_{\text{F}}(p) = 2 \max\left\{\left|\frac{a_{n-1}}{a_n}\right|,\ \left|\frac{a_{n-2}}{a_n}\right|^{\frac{1}{2}},\ \dots,\ \left|\frac{a_1}{a_n}\right|^{\frac{1}{n-1}},\ \left|\frac{a_0}{2a_n}\right|^{\frac{1}{n}}\right\}.
+    \]
+\end{proposition}
+\begin{proof}
+    Let $b_r = |a_r / a_n|$ and $B = \max_{0 \leq r < n} b_r$. For any root $\alpha$ with $|\alpha| > 1$, the triangle inequality gives
+    \[
+        |\alpha|^n \leq \sum_{r=0}^{n-1} b_r |\alpha|^r \leq B \sum_{r=0}^{n-1} |\alpha|^r = B \frac{|\alpha|^n - 1}{|\alpha| - 1} < B \frac{|\alpha|^n}{|\alpha| - 1},
+    \]
+    which upon dividing by $|\alpha|^n$ yields $|\alpha| - 1 < B \implies |\alpha| < 1 + B = M_\infty(p)$.
+    For Fujiwara's bound $M_{\text{F}}(p)$, suppose $|\alpha| > M_{\text{F}}(p)$. Then $b_{n-k} \leq \left(\frac{M_{\text{F}}}{2}\right)^k < \left(\frac{|\alpha|}{2}\right)^k$ for $1 \leq k \leq n-1$ and $b_0 \leq 2\left(\frac{M_{\text{F}}}{2}\right)^n < 2\left(\frac{|\alpha|}{2}\right)^n$. Substituting into $|\alpha|^n \leq \sum_{k=1}^n b_{n-k}|\alpha|^{n-k}$ yields
+    \[
+        |\alpha|^n < |\alpha|^n \left(\sum_{k=1}^{n-1} 2^{-k} + 2 \cdot 2^{-n}\right) = |\alpha|^n \cdot 1 = |\alpha|^n,
+    \]
+    a contradiction. Thus $|\alpha| \leq \min\{M_p, M_\infty(p), M_{\text{F}}(p)\}$.
+\end{proof}
+
+\subsection{Eliminating Endpoint Singularities via Inflection-Point Initialization}
+
+When a sign-changing sub-interval $[a, b] \subset [c_1, c_2]$ has a critical point $c_i$ as its chosen endpoint in Algorithm~\ref{alg:newton_init}, $p'(c_i) = 0$ causes the first Newton step to divide by zero. The following proposition proves that initializing at an interior inflection point $\gamma \in (c_1, c_2)$ avoids this singularity and lands strictly inside the Fourier monotone basin in a single step.
+
+\begin{proposition}[Inflection-Point Tangent Landing]\label{prop_inflection_init}
+    Let $(c_1, c_2)$ be a CCP interval containing a simple root $\alpha$ and a unique inflection point $\gamma \in (c_1, c_2)$ with $p(\gamma) \neq 0$. Then $|p'(x)|$ attains its strict local maximum on $[c_1, c_2]$ at $x = \gamma$, and a single Newton step $x_1 = \Psi_p(\gamma) = \gamma - \frac{p(\gamma)}{p'(\gamma)}$ lands strictly inside the Fourier monotone sub-interval between $\alpha$ and $c_1$ or $c_2$ where $\operatorname{sign}(p) = \operatorname{sign}(p'')$, guaranteeing $\Psi_p^n(\gamma) \to \alpha$.
+\end{proposition}
+\begin{proof}
+    Since $p''(\gamma) = 0$ and $p'$ has constant sign $s \in \{+1, -1\}$ on $(c_1, c_2)$ while vanishing at $c_1$ and $c_2$, $|p'(x)|$ is maximized at $\gamma$, so $p'(\gamma) \neq 0$. By Taylor's Theorem with Lagrange remainder around $\gamma$, there exists $\xi$ between $\gamma$ and $\alpha$ such that
+    \[
+        0 = p(\alpha) = p(\gamma) + p'(\gamma)(\alpha - \gamma) + \frac{1}{2}p''(\xi)(\alpha - \gamma)^2.
+    \]
+    Dividing by $p'(\gamma)$ and substituting $x_1 = \gamma - \frac{p(\gamma)}{p'(\gamma)}$ yields
+    \[
+        x_1 - \alpha = \frac{p''(\xi)}{2p'(\gamma)}(\alpha - \gamma)^2.
+    \]
+    Because $\xi$ lies on the same side of $\gamma$ as $\alpha$, $\operatorname{sign}(p''(\xi))$ equals the sign of $p''$ on the sub-interval containing $\alpha$. Consequently, $x_1$ lies strictly on the side of $\alpha$ where $\operatorname{sign}(p(x_1)) = s \cdot \operatorname{sign}(x_1 - \alpha) = \operatorname{sign}(p''(\xi)) = \operatorname{sign}(p''(x_1))$, which is precisely the Fourier monotone basin where $\Psi'_p > 0$.
+\end{proof}
+
+\subsection{Bottom-Up Dynamic Programming PFP ($O(\phi^n) \to O(n^2)$)}
+
+In Algorithm~\ref{alg:pfp}, calling $\operatorname{PFP}(f')$ and $\operatorname{PFP}(f'')$ independently produces the recurrence $T(n) = T(n-1) + T(n-2) = \Theta(\phi^n)$. However, since $f'' = (f')'$, the recursive call $\operatorname{PFP}(f')$ already computes the roots of $f''$. By organizing the recursion as a single bottom-up dynamic programming pass across the derivative chain $f^{(n-1)}, f^{(n-2)}, \dots, f', f$, where level $k$ receives the precomputed roots $R_{k+1}$ of $f^{(k+1)}$ and $R_{k+2}$ of $f^{(k+2)}$, each derivative level is solved exactly once:
+
+\begin{algorithm}[H]
+\caption{Bottom-Up Dynamic Programming PFP ($O(n^2)$ Root Isolation)}\label{alg:dp_pfp}
+\KwData{Polynomial $f(x)$ of degree $n \geq 1$}
+\KwResult{All real roots $\{(\alpha_i, m_i)\}$ of $f(x)$ with exact multiplicities}
+Precompute derivative chain $P_k(x) = f^{(k)}(x)$ for $k = 0, 1, \dots, n-1$\;
+Solve linear base case $P_{n-1}(x) = 0$ to obtain $R_{n-1} = \{(\alpha, 1)\}$, and set $R_n = \emptyset$\;
+\For{$k = n-2$ \KwTo $0$}{
+    Let critical points of $P_k$ be $C = R_{k+1}$ and inflection points of $P_k$ be $D = R_{k+2}$\;
+    Compute tight bound $M = \min\{M_{P_k}, M_\infty(P_k), M_{\text{F}}(P_k)\} + 1$\;
+    Detect multiple roots $(c_i, m_i + 1)$ where $|P_k(c_i)| < \varepsilon$, and isolate simple roots in each sign-changing interval $(c_i, c_{i+1}) \subset [-M, M]$ using $D$ and safeguarded Newton-Bisection\;
+    Store sorted root list $R_k$\;
+}
+\Return $R_0$\;
+\end{algorithm}
+
+\begin{theorem}[Quadratic $O(n^2)$ Complexity of Bottom-Up PFP]
+    Algorithm~\ref{alg:dp_pfp} reduces the number of polynomial level evaluations from $\Theta(\phi^n)$ to exactly $n - 1$ levels, performing at most $\sum_{k=0}^{n-2}(n - k) = \frac{n(n+1)}{2} - 1 = \mathcal{O}(n^2)$ root-isolation bracket solves.
+\end{theorem}
+
+\section{Acknowledgements}
+I would like to thank Bryce Hancock and Darren Yao for early in-class discussions and collaboration on the initial Secant and Bisection method examples and tables during the Fall 2023 seminar. I also want to thank our mentors, Dominique Maldague and Thomas Pickering, for their incredible support and guidance on both the technical and non-technical parts of this research.
+
+\section{Appendix: Foundations of Convergence and Polynomial Algebra}\label{sec_app}
+
+\begin{define}[Sequence Convergence]
+    A sequence $(x_n) \subset \mathbb{C}$ converges to $x$ iff $\forall \epsilon > 0, \exists N \in \mathbb{N}$ such that $|x_n - x| < \epsilon$ for all $n \geq N$.
+\end{define}
+
+\begin{proposition}[Uniqueness of Limits]
+    If a sequence $(x_n)$ converges in $\mathbb{C}$, its limit is unique.
+\end{proposition}
+
+\begin{define}[Differentiability]
+    A function $f:\mathbb{R}\to\mathbb{R}$ is differentiable at $x$ with derivative $f'(x)$ if and only if
+    \[
+        \forall \epsilon > 0,\ \exists \delta > 0:\ \forall y \in (x-\delta, x+\delta)\setminus\{x\},\ \left|\frac{f(y) - f(x)}{y - x} - f'(x)\right| < \epsilon.
+    \]
+\end{define}
+
+\begin{define}[Polynomial and Degree]
+    A polynomial is a function $p:\mathbb{C}\to\mathbb{C}$ given by $p(x) = \sum_{r=0}^n a_r x^r$ with $a_r \in \mathbb{C}$. Its degree is $d_p = \max\{r \in \{0,\dots,n\} \mid a_r \neq 0\}$.
+\end{define}
+
+\begin{proposition}[Taylor Expansion of a Polynomial]
+    Any polynomial $p(x) = \sum_{r=0}^n a_r x^r$ can be expanded around any $a \in \mathbb{C}$ as
+    \[
+        p(x) = \sum_{r=0}^n \frac{p^{(r)}(a)}{r!}(x - a)^r.
+    \]
+\end{proposition}
+
+\begin{proposition}[Factorization and Vieta's Formulas]
+    A polynomial $p(x) = \sum_{r=0}^n a_r x^r$ ($a_n \neq 0$) with roots $\alpha_1, \dots, \alpha_n \in \mathbb{C}$ factors as $p(x) = a_n(x-\alpha_1)(x-\alpha_2)\cdots(x-\alpha_n)$, and its coefficients satisfy
+    \[
+        a_{n-k} = (-1)^k a_n \sum_{1 \leq i_1 < i_2 < \dots < i_k \leq n} \alpha_{i_1}\alpha_{i_2}\cdots\alpha_{i_k}.
+    \]
+\end{proposition}
+
 \end{document}
