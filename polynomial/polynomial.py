@@ -140,6 +140,159 @@ class Polynomial(Function):
     def __rmul__(self, other: Number) -> Polynomial:
         return self.__mul__(other)
 
+    def divmod(self, divisor: Union[Polynomial, Number]) -> Tuple[Polynomial, Polynomial]:
+        """ Euclidean polynomial division returning (quotient, remainder)."""
+        if isinstance(divisor, (int, float)):
+            if abs(float(divisor)) < 1e-15:
+                raise ZeroDivisionError("Polynomial division by zero scalar")
+            return (
+                Polynomial([c / float(divisor) for c in self.coeff], reverse_and_copy=False),
+                Polynomial([0.0], reverse_and_copy=False),
+            )
+        if not isinstance(divisor, Polynomial):
+            raise TypeError("Divisor must be a Polynomial or scalar")
+        if divisor.degree == 0 and abs(divisor.coeff[0]) < 1e-15:
+            raise ZeroDivisionError("Polynomial division by zero polynomial")
+
+        rem = list(self.coeff)
+        div_deg = divisor.degree
+        div_lead = divisor.coeff[-1]
+        if len(rem) - 1 < div_deg:
+            return Polynomial([0.0], reverse_and_copy=False), Polynomial(rem, reverse_and_copy=False)
+
+        quot = [0.0] * (len(rem) - div_deg)
+        for deg_idx in range(len(rem) - 1, div_deg - 1, -1):
+            factor = rem[deg_idx] / div_lead
+            q_idx = deg_idx - div_deg
+            quot[q_idx] = factor
+            for j in range(div_deg + 1):
+                rem[q_idx + j] -= factor * divisor.coeff[j]
+
+        return (
+            Polynomial(quot, reverse_and_copy=False),
+            Polynomial(rem[:div_deg] if div_deg > 0 else [0.0], reverse_and_copy=False),
+        )
+
+    def __floordiv__(self, other: Union[Polynomial, Number]) -> Polynomial:
+        quot, _ = self.divmod(other)
+        return quot
+
+    def __mod__(self, other: Union[Polynomial, Number]) -> Polynomial:
+        _, rem = self.divmod(other)
+        return rem
+
+    def __truediv__(self, other: Union[Polynomial, Number]) -> Union[Polynomial, RationalPoly]:
+        if isinstance(other, (int, float)):
+            if abs(float(other)) < 1e-15:
+                raise ZeroDivisionError("Division by zero")
+            return Polynomial([c / float(other) for c in self.coeff], reverse_and_copy=False)
+        if isinstance(other, Polynomial):
+            quot, rem = self.divmod(other)
+            if rem.degree == 0 and abs(rem.coeff[0]) < 1e-11:
+                return quot
+            return RationalPoly(quot, rem, other)
+        return NotImplemented
+
+    def __div__(self, other: Union[Polynomial, Number]) -> Union[Polynomial, RationalPoly]:
+        return self.__truediv__(other)
+
+    def forward(self, x: float) -> float:
+        """Evaluate polynomial at x using Horner's method."""
+        ans = 0.0
+        for c in reversed(self.coeff):
+            ans = ans * float(x) + c
+        return ans
+
+    def derivative(self, order: int = 1) -> Polynomial:
+        """Compute exact analytical derivative of given order."""
+        if order < 0:
+            raise ValueError("Derivative order must be non-negative")
+        poly = self
+        for _ in range(order):
+            if poly.degree == 0:
+                return Polynomial([0.0], reverse_and_copy=False)
+            next_coeff = [(r + 1) * c for r, c in enumerate(poly.coeff[1:])]
+            poly = Polynomial(next_coeff, reverse_and_copy=False)
+        return poly
+
+    def root_bound(self) -> float:
+        """
+        Cauchy L1 Bound M_p on root magnitudes (Proposition 2.1):
+        M_p = max(1, sum_{r=0}^{n-1} |a_r / a_n|).
+        """
+        if self.degree <= 0:
+            return 1.0
+        lead = abs(self.coeff[-1])
+        if lead < 1e-15:
+            return 1.0
+        coeff_sum = sum(abs(c) / lead for c in self.coeff[:-1])
+        return max(1.0, coeff_sum)
+
+    def cauchy_linf_bound(self) -> float:
+        """
+        Cauchy L_infinity Bound M_inf on root magnitudes (Proposition 6.1):
+        M_inf = 1 + max_{0 <= r <= n-1} |a_r / a_n|.
+        """
+        if self.degree <= 0:
+            return 1.0
+        lead = abs(self.coeff[-1])
+        if lead < 1e-15:
+            return 1.0
+        max_ratio = max(abs(c) / lead for c in self.coeff[:-1])
+        return 1.0 + max_ratio
+
+    def fujiwara_bound(self) -> float:
+        """
+        Fujiwara Radical Bound M_F on root magnitudes (Proposition 6.1):
+        M_F = 2 * max(|a_{n-1}/a_n|, |a_{n-2}/a_n|^{1/2}, ..., |a_0/(2*a_n)|^{1/n}).
+        """
+        n = self.degree
+        if n <= 0:
+            return 1.0
+        lead = abs(self.coeff[-1])
+        if lead < 1e-15:
+            return 1.0
+        terms: List[float] = []
+        for k in range(1, n):
+            ratio = abs(self.coeff[n - k]) / lead
+            terms.append(ratio ** (1.0 / k))
+        const_ratio = abs(self.coeff[0]) / (2.0 * lead)
+        terms.append(const_ratio ** (1.0 / n))
+        return max(1.0, 2.0 * max(terms))
+
+    def tight_root_bound(self) -> float:
+        """
+        Optimal composite root bound min(M_p, M_inf, M_F) (Proposition 6.1).
+        """
+        return min(self.root_bound(), self.cauchy_linf_bound(), self.fujiwara_bound())
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        if self.degree == 0:
+            return _format_num(self.coeff[0])
+        terms: List[str] = []
+        for r in range(self.degree, -1, -1):
+            c = self.coeff[r]
+            if abs(c) <= 1e-12:
+                continue
+            sign = "-" if c < 0 else "+"
+            c_abs = abs(c)
+            coeff_str = "" if (abs(c_abs - 1.0) < 1e-9 and r > 0) else _format_num(c_abs)
+            if r == 0:
+                var_str = ""
+            elif r == 1:
+                var_str = "x"
+            else:
+                var_str = f"x^{r}"
+            term_body = f"{coeff_str}{var_str}"
+            if not terms:
+                terms.append(f"-{term_body}" if sign == "-" else term_body)
+            else:
+                terms.append(f" {sign} {term_body}")
+        return "".join(terms) if terms else "0"
+
 class RationalPoly(Function):
     """Rational function R(x) = oblique(x) + numerator(x) / denominator(x)."""
 
