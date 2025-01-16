@@ -469,6 +469,169 @@ class Polynomial(Function):
             x_cur = x_next
         return trace
 
+    def _solve_level_with_dp(
+        self,
+        crit_with_mult: List[Tuple[float, int]],
+        infl_roots: List[float],
+        tol: float = 1e-7,
+    ) -> List[Tuple[float, int]]:
+        """
+        Single-level PFP root isolation given precomputed roots of p' (crit_with_mult)
+        and roots of p'' (infl_roots). Used by the O(n^2) bottom-up DP solver.
+        """
+        if self.degree <= 0:
+            return []
+        if self.degree == 1:
+            root = -self.coeff[0] / self.coeff[1]
+            return [(0.0 if abs(root) < 1e-12 else root, 1)]
+        if self.degree == 2:
+            c0, c1, c2 = self.coeff[0], self.coeff[1], self.coeff[2]
+            disc = c1 * c1 - 4.0 * c2 * c0
+            if abs(disc) <= 1e-10:
+                r = -c1 / (2.0 * c2)
+                return [(0.0 if abs(r) < 1e-12 else r, 2)]
+            if disc < 0.0:
+                return []
+            sqrt_d = math.sqrt(disc)
+            r1 = (-c1 - sqrt_d) / (2.0 * c2)
+            r2 = (-c1 + sqrt_d) / (2.0 * c2)
+            if r1 > r2:
+                r1, r2 = r2, r1
+            return [
+                (0.0 if abs(r1) < 1e-12 else r1, 1),
+                (0.0 if abs(r2) < 1e-12 else r2, 1),
+            ]
+
+        found: List[Tuple[float, int]] = []
+        crit_points: List[float] = []
+        for c_val, c_mult in crit_with_mult:
+            crit_points.append(c_val)
+            scale = max(1.0, abs(c_val)) ** self.degree
+            if abs(self(c_val)) <= tol * scale:
+                found.append((0.0 if abs(c_val) < 1e-10 else c_val, c_mult + 1))
+
+        bound = self.tight_root_bound() + 1.0
+        if crit_points:
+            bound = max(bound, max(abs(c) for c in crit_points) + 2.0)
+
+        partition = [-bound] + crit_points + [bound]
+        mult_roots = [r for r, _ in found]
+
+        for idx in range(len(partition) - 1):
+            left_b, right_b = partition[idx], partition[idx + 1]
+            span = right_b - left_b
+            if span <= 1e-9:
+                continue
+            eps_shift = min(1e-5, 0.05 * span)
+            a = left_b + (eps_shift if any(abs(left_b - mr) <= 1e-5 for mr in mult_roots) else 0.0)
+            b = right_b - (eps_shift if any(abs(right_b - mr) <= 1e-5 for mr in mult_roots) else 0.0)
+            if a >= b:
+                continue
+            fa, fb = self(a), self(b)
+            if abs(fa) <= 1e-11 and not any(abs(a - mr) <= 1e-4 for mr in mult_roots):
+                found.append((0.0 if abs(a) < 1e-10 else a, 1))
+                continue
+            if abs(fb) <= 1e-11 and not any(abs(b - mr) <= 1e-4 for mr in mult_roots):
+                found.append((0.0 if abs(b) < 1e-10 else b, 1))
+                continue
+            if (fa < 0.0 < fb) or (fa > 0.0 > fb):
+                sub_infl = [g for g in infl_roots if a < g < b]
+                trace = self.newton_bisect(a, b, inflections=sub_infl, tol=1e-12)
+                root_est = trace[-1]
+                if abs(root_est - round(root_est)) < 1e-7 and abs(self(round(root_est))) < 1e-9:
+                    root_est = float(round(root_est))
+                elif abs(root_est) < 1e-10:
+                    root_est = 0.0
+                if not any(abs(root_est - existing) <= 1e-4 for existing, _ in found):
+                    found.append((root_est, 1))
+
+        found.sort(key=lambda item: item[0])
+        merged: List[Tuple[float, int]] = []
+        for r_val, r_mult in found:
+            if merged and abs(merged[-1][0] - r_val) <= 1e-4:
+                prev_r, prev_m = merged[-1]
+                merged[-1] = (0.5 * (prev_r + r_val), max(prev_m, r_mult))
+            else:
+                merged.append((r_val, r_mult))
+        return merged
+
+    def pfp_roots(self, tol: float = 1e-7) -> List[Tuple[float, int]]:
+        """
+        Algorithm 3 & 5: Bottom-Up Dynamic Programming Polynomial Factorization Procedure (PFP).
+        Computes all real roots (root, multiplicity) in O(n^2) bracket solves by evaluating
+        each derivative level P_k = f^{(k)} once from k = n - 1 down to 0.
+        """
+        if self.degree <= 0:
+            return []
+        if self.degree <= 2:
+            return self._solve_level_with_dp([], [], tol=tol)
+
+        # Build derivative tower P_0 = f, P_1 = f', ..., P_{n-1} = f^{(n-1)}
+        tower: List[Polynomial] = [self]
+        while tower[-1].degree > 1:
+            tower.append(tower[-1].derivative(1))
+
+        # Bottom-up DP state: roots_next is R_{k+1}, roots_next2 is R_{k+2}
+        roots_next: List[Tuple[float, int]] = tower[-1]._solve_level_with_dp([], [], tol=tol)
+        roots_next2: List[Tuple[float, int]] = []
+
+        for k in range(len(tower) - 2, -1, -1):
+            infl_list = [r for r, _ in roots_next2]
+            curr_roots = tower[k]._solve_level_with_dp(roots_next, infl_list, tol=tol)
+            roots_next2 = roots_next
+            roots_next = curr_roots
+
+        return roots_next
+
+    def factorize(self) -> Dict[str, object]:
+        """
+        Factorize the polynomial using PFP and return structured root, factor,
+        critical-point, inflection-point, and residual polynomial data.
+        """
+        roots = self.pfp_roots()
+        lead = self.coeff[-1]
+        factors: List[str] = []
+        if abs(lead - 1.0) > 1e-9:
+            factors.append("-" if abs(lead + 1.0) < 1e-9 else _format_num(lead))
+
+        deflated = Polynomial(self.coeff, reverse_and_copy=False)
+        for root_val, mult in roots:
+            linear = Polynomial([1.0, -root_val], reverse_and_copy=True)
+            for _ in range(mult):
+                q, _ = deflated.divmod(linear)
+                deflated = q
+
+            if abs(root_val) < 1e-9:
+                base_str = "x"
+            elif root_val > 0:
+                base_str = f"(x - {_format_num(root_val)})"
+            else:
+                base_str = f"(x + {_format_num(abs(root_val))})"
+            factors.append(f"{base_str}^{mult}" if mult > 1 else base_str)
+
+        if deflated.degree > 0:
+            monic_residual = deflated / deflated.coeff[-1]
+            factors.append(f"({monic_residual})")
+
+        factored_str = "".join(factors) if factors else str(self)
+        crit_pts = [r for r, _ in self.derivative(1).pfp_roots()] if self.degree >= 2 else []
+        infl_pts = [r for r, _ in self.derivative(2).pfp_roots()] if self.degree >= 3 else []
+
+        return {
+            "expression": str(self),
+            "degree": self.degree,
+            "cauchy_bound": round(self.root_bound(), 6),
+            "linf_bound": round(self.cauchy_linf_bound(), 6),
+            "fujiwara_bound": round(self.fujiwara_bound(), 6),
+            "tight_bound": round(self.tight_root_bound(), 6),
+            "roots": [{"root": round(r, 8), "multiplicity": m} for r, m in roots],
+            "critical_points": [round(c, 8) for c in crit_pts],
+            "inflection_points": [round(g, 8) for g in infl_pts],
+            "factored": factored_str,
+        }
+
+
+
 class RationalPoly(Function):
     """Rational function R(x) = oblique(x) + numerator(x) / denominator(x)."""
 
