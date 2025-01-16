@@ -373,6 +373,102 @@ class Polynomial(Function):
                 a, fa = mid, fm
         return midpoints
 
+    def newton_init_guess(
+        self,
+        c1: float,
+        c2: float,
+        inflections: Optional[Sequence[float]] = None,
+    ) -> float:
+        """
+        Algorithm 2 (Inflection-Guided Initial Guess for Newton's Method):
+        Given consecutive critical points c1 < c2 with opposite signs of p,
+        partition [c1, c2] by inflection points and select the endpoint x0
+        where sign(p(x0)) == sign(p''(x0)), ensuring Psi'_p(x) > 0.
+        """
+        a, b = (float(c1), float(c2)) if c1 <= c2 else (float(c2), float(c1))
+        d1 = self.derivative(1)
+        d2 = self.derivative(2)
+        interior_inflections = sorted(
+            g for g in (inflections or []) if a + 1e-9 < g < b - 1e-9
+        )
+        pts = [a] + interior_inflections + [b]
+        slope_sign = 1.0 if d1(0.5 * (a + b)) >= 0.0 else -1.0
+
+        for idx in range(len(pts) - 1):
+            left_pt, right_pt = pts[idx], pts[idx + 1]
+            fl, fr = self(left_pt), self(right_pt)
+            if fl * fr <= 0.0:
+                mid = 0.5 * (left_pt + right_pt)
+                concavity_sign = 1.0 if d2(mid) >= 0.0 else -1.0
+                chosen = right_pt if concavity_sign == slope_sign else left_pt
+                # Proposition 6.2: If chosen endpoint is a critical point (where p'(x)=0),
+                # and the opposite endpoint is an interior inflection point gamma,
+                # take one tangent step from gamma to land strictly in the Fourier basin.
+                if abs(d1(chosen)) < 1e-9:
+                    other = left_pt if chosen == right_pt else right_pt
+                    d1_other = d1(other)
+                    if abs(d1_other) > 1e-9:
+                        landed = other - self(other) / d1_other
+                        if left_pt < landed < right_pt:
+                            return landed
+                    # Otherwise nudge slightly inside the open interval
+                    span = right_pt - left_pt
+                    return right_pt - 0.05 * span if chosen == right_pt else left_pt + 0.05 * span
+                return chosen
+        return 0.5 * (a + b)
+
+    def newton_bisect(
+        self,
+        left: float,
+        right: float,
+        inflections: Optional[Sequence[float]] = None,
+        iteration: int = 48,
+        tol: float = 1e-11,
+    ) -> List[float]:
+        """
+        Hybrid Inflection-Guided Newton-Bisection solver on a sign-changing bracket [left, right].
+        Takes quadratic Newton steps whenever they stay inside (left, right), and falls back to
+        bisection midpoint halving if a tangent step overshoots the bracket.
+        """
+        a, b = (float(left), float(right)) if left <= right else (float(right), float(left))
+        fa, fb = self(a), self(b)
+        if abs(fa) <= tol:
+            return [a]
+        if abs(fb) <= tol:
+            return [b]
+
+        x_cur = self.newton_init_guess(a, b, inflections)
+        if x_cur <= a or x_cur >= b:
+            x_cur = 0.5 * (a + b)
+
+        deriv_poly = self.derivative(1)
+        trace: List[float] = [x_cur]
+        for _ in range(iteration):
+            fx = self(x_cur)
+            if abs(fx) <= tol or 0.5 * (b - a) <= tol:
+                break
+            if (fa < 0.0 < fx) or (fa > 0.0 > fx):
+                b, fb = x_cur, fx
+            elif (fb < 0.0 < fx) or (fb > 0.0 > fx):
+                a, fa = x_cur, fx
+
+            dfx = deriv_poly(x_cur)
+            if abs(dfx) > 1e-12:
+                cand = x_cur - fx / dfx
+            else:
+                cand = 0.5 * (a + b)
+
+            if a < cand < b:
+                x_next = cand
+            else:
+                x_next = 0.5 * (a + b)
+
+            trace.append(x_next)
+            if abs(x_next - x_cur) <= tol and abs(self(x_next)) <= tol:
+                break
+            x_cur = x_next
+        return trace
+
 class RationalPoly(Function):
     """Rational function R(x) = oblique(x) + numerator(x) / denominator(x)."""
 
