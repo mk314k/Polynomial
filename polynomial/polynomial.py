@@ -293,6 +293,86 @@ class Polynomial(Function):
                 terms.append(f" {sign} {term_body}")
         return "".join(terms) if terms else "0"
 
+    def newton(
+        self,
+        x0: float,
+        iteration: int = 24,
+        tol: float = 1e-10,
+    ) -> List[float]:
+        """Run Newton's method starting at x0 and return the sequence of iterates."""
+        x_seq: List[float] = [float(x0)]
+        deriv_poly = self.derivative()
+        for _ in range(iteration):
+            cur = x_seq[-1]
+            f_val = self(cur)
+            if abs(f_val) <= tol:
+                break
+            d_val = deriv_poly(cur)
+            if abs(d_val) < 1e-12:
+                d_val = 1e-12 if d_val >= 0 else -1e-12
+            nxt = cur - f_val / d_val
+            x_seq.append(nxt)
+            if abs(nxt - cur) <= tol and abs(self(nxt)) <= tol:
+                break
+        return x_seq
+
+    def secant(
+        self,
+        x0: float,
+        x1: float,
+        iteration: int = 32,
+        tol: float = 1e-10,
+    ) -> List[float]:
+        """Run the Secant method starting from (x0, x1) and return the sequence of iterates."""
+        x_seq: List[float] = [float(x0), float(x1)]
+        for _ in range(iteration):
+            prev, cur = x_seq[-2], x_seq[-1]
+            f_cur = self(cur)
+            if abs(f_cur) <= tol:
+                break
+            f_prev = self(prev)
+            diff = f_cur - f_prev
+            if abs(diff) < 1e-12:
+                cur_shifted = cur + 1e-6
+                f_cur = self(cur_shifted)
+                diff = f_cur - f_prev
+                if abs(diff) < 1e-12:
+                    break
+            nxt = cur - f_cur * (cur - prev) / diff
+            x_seq.append(nxt)
+            if abs(nxt - cur) <= tol and abs(self(nxt)) <= tol:
+                break
+        return x_seq
+
+    def bisection(
+        self,
+        left: float,
+        right: float,
+        iteration: int = 64,
+        tol: float = 1e-10,
+    ) -> List[float]:
+        """Run the Bisection method on [left, right] and return midpoint iterates."""
+        a, b = float(left), float(right)
+        if a > b:
+            a, b = b, a
+        fa, fb = self(a), self(b)
+        if abs(fa) <= tol:
+            return [a]
+        if abs(fb) <= tol:
+            return [b]
+        midpoints: List[float] = []
+        for _ in range(iteration):
+            mid = 0.5 * (a + b)
+            midpoints.append(mid)
+            fm = self(mid)
+            if abs(fm) <= tol or 0.5 * (b - a) <= tol:
+                break
+            if (fa < 0.0 < fm) or (fa > 0.0 > fm):
+                b, fb = mid, fm
+            else:
+                a, fa = mid, fm
+        return midpoints
+
 class RationalPoly(Function):
     """Rational function R(x) = oblique(x) + numerator(x) / denominator(x)."""
 
