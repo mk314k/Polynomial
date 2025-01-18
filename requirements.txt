@@ -1,2 +1,2 @@
-Flask==2.0.2
-Flask-Cors==3.0.10
+# Core library (`polynomial`) has zero runtime dependencies.
+# Optional dev/test tools can be installed with `pip install pytest pylint`.
