@@ -214,4 +214,209 @@ export class PolynomialModel {
   }
 
   /** Algorithm 2: Inflection-Guided Initial Guess inside [c1, c2] */
+  public newtonInitGuess(c1: number, c2: number, inflections: number[] = []): number {
+    const a = Math.min(c1, c2);
+    const b = Math.max(c1, c2);
+    const d1 = this.derivative(1);
+    const d2 = this.derivative(2);
+    const inside = inflections
+      .filter((g) => g > a + 1e-8 && g < b - 1e-8)
+      .sort((x, y) => x - y);
+    const pts = [a, ...inside, b];
+    const slopeSign = d1.eval(0.5 * (a + b)) >= 0 ? 1 : -1;
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const left = pts[i];
+      const right = pts[i + 1];
+      if (this.eval(left) * this.eval(right) <= 0) {
+        const concSign = d2.eval(0.5 * (left + right)) >= 0 ? 1 : -1;
+        const chosen = concSign === slopeSign ? right : left;
+        // Proposition 6.2: Inflection-Point Tangent Landing when chosen endpoint is a critical point
+        if (Math.abs(d1.eval(chosen)) < 1e-9) {
+          const other = chosen === right ? left : right;
+          const d1Other = d1.eval(other);
+          if (Math.abs(d1Other) > 1e-9) {
+            const landed = other - this.eval(other) / d1Other;
+            if (landed > left && landed < right) {
+              return landed;
+            }
+          }
+          const span = right - left;
+          return chosen === right ? right - 0.05 * span : left + 0.05 * span;
+        }
+        return chosen;
+      }
+    }
+    return 0.5 * (a + b);
+  }
+
+  public runNewton(x0: number, trueRoot?: number, maxSteps = 16, tol = 1e-9): NewtonStep[] {
+    const d1 = this.derivative(1);
+    const steps: NewtonStep[] = [];
+    let cur = x0;
+    for (let s = 0; s < maxSteps; s++) {
+      const fx = this.eval(cur);
+      const dfx = d1.eval(cur);
+      const safeDfx = Math.abs(dfx) < 1e-12 ? (dfx >= 0 ? 1e-12 : -1e-12) : dfx;
+      const nextX = cur - fx / safeDfx;
+      const target = trueRoot ?? nextX;
+      steps.push({
+        step: s,
+        x: cur,
+        fx,
+        dfx,
+        nextX,
+        error: Math.abs(cur - target),
+      });
+      if (Math.abs(fx) <= tol || Math.abs(nextX - cur) <= tol) {
+        break;
+      }
+      cur = nextX;
+    }
+    if (trueRoot === undefined && steps.length > 0) {
+      const finalEst = steps[steps.length - 1].nextX;
+      for (const st of steps) {
+        st.error = Math.abs(st.x - finalEst);
+      }
+    }
+    return steps;
+  }
+
+  public runSecant(
+    x0: number,
+    x1: number,
+    trueRoot?: number,
+    maxSteps = 18,
+    tol = 1e-9,
+  ): SecantStep[] {
+    const steps: SecantStep[] = [];
+    let prev = x0;
+    let cur = x1;
+    for (let s = 0; s < maxSteps; s++) {
+      const fPrev = this.eval(prev);
+      let fCur = this.eval(cur);
+      let diff = fCur - fPrev;
+      if (Math.abs(diff) < 1e-12) {
+        cur += 1e-5;
+        fCur = this.eval(cur);
+        diff = fCur - fPrev;
+        if (Math.abs(diff) < 1e-12) break;
+      }
+      const nextX = cur - (fCur * (cur - prev)) / diff;
+      const target = trueRoot ?? nextX;
+      steps.push({
+        step: s,
+        xPrev: prev,
+        xCurr: cur,
+        fxCurr: fCur,
+        nextX,
+        error: Math.abs(cur - target),
+      });
+      if (Math.abs(fCur) <= tol || Math.abs(nextX - cur) <= tol) {
+        break;
+      }
+      prev = cur;
+      cur = nextX;
+    }
+    if (trueRoot === undefined && steps.length > 0) {
+      const finalEst = steps[steps.length - 1].nextX;
+      for (const st of steps) {
+        st.error = Math.abs(st.xCurr - finalEst);
+      }
+    }
+    return steps;
+  }
+
+  public runBisection(
+    left: number,
+    right: number,
+    trueRoot?: number,
+    maxSteps = 22,
+    tol = 1e-7,
+  ): BisectionStep[] {
+    let a = Math.min(left, right);
+    let b = Math.max(left, right);
+    let fa = this.eval(a);
+    const steps: BisectionStep[] = [];
+    for (let s = 0; s < maxSteps; s++) {
+      const mid = 0.5 * (a + b);
+      const fMid = this.eval(mid);
+      const target = trueRoot ?? mid;
+      steps.push({
+        step: s,
+        left: a,
+        right: b,
+        mid,
+        fMid,
+        error: Math.abs(mid - target),
+      });
+      if (Math.abs(fMid) <= tol || 0.5 * (b - a) <= tol) {
+        break;
+      }
+      if ((fa < 0 && fMid > 0) || (fa > 0 && fMid < 0)) {
+        b = mid;
+      } else {
+        a = mid;
+        fa = fMid;
+      }
+    }
+    if (trueRoot === undefined && steps.length > 0) {
+      const finalEst = steps[steps.length - 1].mid;
+      for (const st of steps) {
+        st.error = Math.abs(st.mid - finalEst);
+      }
+    }
+    return steps;
+  }
+
+  /** Safeguarded Inflection-Guided Newton-Bisection solver */
+  public solveBracket(
+    left: number,
+    right: number,
+    inflections: number[] = [],
+    tol = 1e-11,
+  ): { root: number; initialGuess: number; iterations: number } {
+    let a = Math.min(left, right);
+    let b = Math.max(left, right);
+    let fa = this.eval(a);
+    let fb = this.eval(b);
+    if (Math.abs(fa) <= tol) return { root: a, initialGuess: a, iterations: 0 };
+    if (Math.abs(fb) <= tol) return { root: b, initialGuess: b, iterations: 0 };
+
+    const initGuess = this.newtonInitGuess(a, b, inflections);
+    let cur = initGuess > a && initGuess < b ? initGuess : 0.5 * (a + b);
+    const d1 = this.derivative(1);
+    let iters = 0;
+
+    for (let i = 0; i < 48; i++) {
+      iters = i + 1;
+      const fx = this.eval(cur);
+      if (Math.abs(fx) <= tol || 0.5 * (b - a) <= tol) break;
+
+      if ((fa < 0 && fx > 0) || (fa > 0 && fx < 0)) {
+        b = cur;
+        fb = fx;
+      } else if ((fb < 0 && fx > 0) || (fb > 0 && fx < 0)) {
+        a = cur;
+        fa = fx;
+      }
+
+      const dfx = d1.eval(cur);
+      const cand = Math.abs(dfx) > 1e-12 ? cur - fx / dfx : 0.5 * (a + b);
+      const next = cand > a && cand < b ? cand : 0.5 * (a + b);
+      if (Math.abs(next - cur) <= tol && Math.abs(this.eval(next)) <= tol) {
+        cur = next;
+        break;
+      }
+      cur = next;
+    }
+
+    if (Math.abs(cur - Math.round(cur)) < 1e-6 && Math.abs(this.eval(Math.round(cur))) < 1e-9) {
+      cur = Math.round(cur);
+    } else if (Math.abs(cur) < 1e-10) {
+      cur = 0;
+    }
+    return { root: cur, initialGuess: initGuess, iterations: iters };
+  }
+
 }
