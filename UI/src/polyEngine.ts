@@ -419,4 +419,275 @@ export class PolynomialModel {
     return { root: cur, initialGuess: initGuess, iterations: iters };
   }
 
+  private solveLevelWithDp(
+    critEntries: RootEntry[],
+    inflRoots: number[],
+    tol = 1e-6,
+  ): RootEntry[] {
+    if (this.degree <= 0) return [];
+    if (this.degree === 1) {
+      const r = -this.coeff[0] / this.coeff[1];
+      return [{ root: Math.abs(r) < 1e-11 ? 0 : r, multiplicity: 1 }];
+    }
+    if (this.degree === 2) {
+      const c0 = this.coeff[0];
+      const c1 = this.coeff[1];
+      const c2 = this.coeff[2];
+      const disc = c1 * c1 - 4 * c2 * c0;
+      if (Math.abs(disc) <= 1e-9) {
+        const r = -c1 / (2 * c2);
+        return [{ root: Math.abs(r) < 1e-11 ? 0 : r, multiplicity: 2 }];
+      }
+      if (disc < 0) return [];
+      const sq = Math.sqrt(disc);
+      const r1 = (-c1 - sq) / (2 * c2);
+      const r2 = (-c1 + sq) / (2 * c2);
+      const lo = Math.min(r1, r2);
+      const hi = Math.max(r1, r2);
+      return [
+        { root: Math.abs(lo) < 1e-11 ? 0 : lo, multiplicity: 1 },
+        { root: Math.abs(hi) < 1e-11 ? 0 : hi, multiplicity: 1 },
+      ];
+    }
+
+    const found: RootEntry[] = [];
+    const critValues: number[] = [];
+
+    for (const c of critEntries) {
+      critValues.push(c.root);
+      const scale = Math.pow(Math.max(1, Math.abs(c.root)), this.degree);
+      if (Math.abs(this.eval(c.root)) <= tol * scale) {
+        found.push({
+          root: Math.abs(c.root) < 1e-10 ? 0 : c.root,
+          multiplicity: c.multiplicity + 1,
+        });
+      }
+    }
+
+    let bound = this.tightBound() + 1;
+    if (critValues.length > 0) {
+      const maxCrit = Math.max(...critValues.map((v) => Math.abs(v)));
+      bound = Math.max(bound, maxCrit + 2);
+    }
+
+    const partition = [-bound, ...critValues, bound];
+    const multRoots = found.map((f) => f.root);
+
+    for (let i = 0; i < partition.length - 1; i++) {
+      const leftB = partition[i];
+      const rightB = partition[i + 1];
+      const span = rightB - leftB;
+      if (span <= 1e-8) continue;
+
+      const shift = Math.min(1e-5, 0.04 * span);
+      const a = leftB + (multRoots.some((mr) => Math.abs(leftB - mr) <= 1e-4) ? shift : 0);
+      const b = rightB - (multRoots.some((mr) => Math.abs(rightB - mr) <= 1e-4) ? shift : 0);
+      if (a >= b) continue;
+
+      const fa = this.eval(a);
+      const fb = this.eval(b);
+      if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) {
+        const subInfl = inflRoots.filter((g) => g > a && g < b);
+        const solved = this.solveBracket(a, b, subInfl);
+        if (!found.some((e) => Math.abs(e.root - solved.root) <= 1e-4)) {
+          found.push({ root: solved.root, multiplicity: 1 });
+        }
+      }
+    }
+
+    found.sort((x, y) => x.root - y.root);
+    const merged: RootEntry[] = [];
+    for (const item of found) {
+      const last = merged[merged.length - 1];
+      if (last && Math.abs(last.root - item.root) <= 1e-4) {
+        last.root = 0.5 * (last.root + item.root);
+        last.multiplicity = Math.max(last.multiplicity, item.multiplicity);
+      } else {
+        merged.push({ ...item });
+      }
+    }
+    return merged;
+  }
+
+  /** Algorithm 3 & 5: Bottom-Up Dynamic Programming PFP (O(n^2) Root Isolation) */
+  public pfpRoots(tol = 1e-6): RootEntry[] {
+    if (this.degree <= 0) return [];
+    if (this.degree <= 2) return this.solveLevelWithDp([], [], tol);
+
+    const tower: PolynomialModel[] = [PolynomialModel.fromAscending(this.coeff)];
+    while (tower[tower.length - 1].degree > 1) {
+      tower.push(tower[tower.length - 1].derivative(1));
+    }
+
+    let rootsNext = tower[tower.length - 1].solveLevelWithDp([], [], tol);
+    let rootsNext2: RootEntry[] = [];
+
+    for (let k = tower.length - 2; k >= 0; k--) {
+      const inflList = rootsNext2.map((e) => e.root);
+      const currRoots = tower[k].solveLevelWithDp(rootsNext, inflList, tol);
+      rootsNext2 = rootsNext;
+      rootsNext = currRoots;
+    }
+
+    return rootsNext;
+  }
+
+  public factorize(): PfpResult {
+    const roots = this.pfpRoots();
+    const d1 = this.derivative(1);
+    const d2 = this.derivative(2);
+    const critEntries = this.degree >= 2 ? d1.pfpRoots() : [];
+    const inflPoints = this.degree >= 3 ? d2.pfpRoots().map((e) => e.root) : [];
+    const cauchy = this.cauchyBound();
+    const linf = this.cauchyLinfBound();
+    const fujiwara = this.fujiwaraBound();
+    const tight = this.tightBound();
+
+    const bound = Math.max(
+      tight + 1,
+      critEntries.length > 0 ? Math.max(...critEntries.map((c) => Math.abs(c.root))) + 2 : 2,
+    );
+    const partition = [-bound, ...critEntries.map((c) => c.root), bound];
+    const multRoots = roots.filter((r) => r.multiplicity > 1).map((r) => r.root);
+
+    const intervals: PfpIntervalAnalysis[] = [];
+    for (let i = 0; i < partition.length - 1; i++) {
+      const l = partition[i];
+      const r = partition[i + 1];
+      const span = r - l;
+      const shift = Math.min(1e-5, 0.04 * span);
+      const a = l + (multRoots.some((mr) => Math.abs(l - mr) <= 1e-4) ? shift : 0);
+      const b = r - (multRoots.some((mr) => Math.abs(r - mr) <= 1e-4) ? shift : 0);
+      const fa = this.eval(a);
+      const fb = this.eval(b);
+      const signChange = (fa < 0 && fb > 0) || (fa > 0 && fb < 0);
+      const subInfl = inflPoints.filter((g) => g > a && g < b);
+
+      if (signChange && a < b) {
+        const solved = this.solveBracket(a, b, subInfl);
+        intervals.push({
+          left: l,
+          right: r,
+          fLeft: this.eval(l),
+          fRight: this.eval(r),
+          hasSignChange: true,
+          inflectionsInBracket: subInfl,
+          initialGuess: solved.initialGuess,
+          convergedRoot: solved.root,
+          iterations: solved.iterations,
+        });
+      } else {
+        intervals.push({
+          left: l,
+          right: r,
+          fLeft: this.eval(l),
+          fRight: this.eval(r),
+          hasSignChange: false,
+          inflectionsInBracket: subInfl,
+          initialGuess: null,
+          convergedRoot: null,
+          iterations: 0,
+        });
+      }
+    }
+
+    const lead = this.coeff[this.degree];
+    const factors: string[] = [];
+    if (Math.abs(lead - 1) > 1e-8) {
+      factors.push(Math.abs(lead + 1) < 1e-8 ? '-' : formatNum(lead));
+    }
+
+    let deflated = PolynomialModel.fromAscending(this.coeff);
+    for (const rEntry of roots) {
+      for (let m = 0; m < rEntry.multiplicity; m++) {
+        deflated = deflated.divmodLinear(rEntry.root).quotient;
+      }
+      let base = '';
+      if (Math.abs(rEntry.root) < 1e-8) {
+        base = 'x';
+      } else if (rEntry.root > 0) {
+        base = `(x - ${formatNum(rEntry.root)})`;
+      } else {
+        base = `(x + ${formatNum(Math.abs(rEntry.root))})`;
+      }
+      factors.push(rEntry.multiplicity > 1 ? `${base}^${rEntry.multiplicity}` : base);
+    }
+
+    if (deflated.degree > 0) {
+      const leadDef = deflated.coeff[deflated.degree];
+      const monicAsc = deflated.coeff.map((c) => c / leadDef);
+      const monic = PolynomialModel.fromAscending(monicAsc);
+      factors.push(`(${monic.toString()})`);
+    }
+
+    return {
+      expression: this.toString(),
+      derivative1: d1.toString(),
+      derivative2: d2.toString(),
+      degree: this.degree,
+      cauchyBound: cauchy,
+      linfBound: linf,
+      fujiwaraBound: fujiwara,
+      tightBound: tight,
+      roots,
+      criticalPoints: critEntries,
+      inflectionPoints: inflPoints,
+      intervals,
+      factored: factors.length > 0 ? factors.join('') : this.toString(),
+    };
+  }
+}
+
+export function parsePolynomialInput(input: string): PolynomialModel {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return new PolynomialModel([1, 0, -4]);
+  }
+  if (!trimmed.toLowerCase().includes('x')) {
+    const nums = trimmed
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n));
+    return new PolynomialModel(nums.length > 0 ? nums : [0], true);
+  }
+
+  const cleaned = trimmed.toLowerCase().replace(/\*\*/g, '^').replace(/\s+/g, '');
+  const termRegex = /([+-]?(?:\d+(?:\.\d+)?|\.\d+)?)x(?:\^(\d+))?|([+-]?(?:\d+(?:\.\d+)?|\.\d+))/g;
+  const map = new Map<number, number>();
+  let match: RegExpExecArray | null;
+  let matchedAny = false;
+
+  while ((match = termRegex.exec(cleaned)) !== null) {
+    if (match[0].length === 0) {
+      termRegex.lastIndex += 1;
+      continue;
+    }
+    matchedAny = true;
+    const [, coeffPart, expPart, constPart] = match;
+    if (constPart !== undefined) {
+      const val = Number(constPart);
+      if (Number.isFinite(val)) {
+        map.set(0, (map.get(0) ?? 0) + val);
+      }
+    } else {
+      const deg = expPart !== undefined ? parseInt(expPart, 10) : 1;
+      let cVal = 1;
+      if (coeffPart === '' || coeffPart === '+') cVal = 1;
+      else if (coeffPart === '-') cVal = -1;
+      else cVal = Number(coeffPart);
+      if (Number.isFinite(cVal)) {
+        map.set(deg, (map.get(deg) ?? 0) + cVal);
+      }
+    }
+  }
+
+  if (!matchedAny || map.size === 0) {
+    return new PolynomialModel([1, 0, -4]);
+  }
+  const maxDeg = Math.max(...Array.from(map.keys()));
+  const asc: number[] = [];
+  for (let d = 0; d <= maxDeg; d++) {
+    asc.push(map.get(d) ?? 0);
+  }
+  return PolynomialModel.fromAscending(asc);
 }
