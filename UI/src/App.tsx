@@ -181,8 +181,8 @@ function App() {
       {/* Academic Paper Masthead */}
       <header className="paper-masthead">
         <div className="journal-meta">
-          <span>MATHEMATICS OF COMPUTATION &middot; NUMERICAL ANALYSIS MONOGRAPH</span>
-          <span>NOVEMBER 2023 &middot; EXPANDED JANUARY 2025</span>
+          <span>MATHEMATICS OF COMPUTATION · NUMERICAL ANALYSIS MONOGRAPH</span>
+          <span>NOVEMBER 2023 · EXPANDED JANUARY 2025</span>
         </div>
 
         <h1 className="paper-title">
@@ -204,9 +204,9 @@ function App() {
           method, and the bisection method to approximate real roots of univariate polynomials. We
           compare convergence orders, basins of attraction, and failure modes through theoretical
           and computational analysis: Newton&apos;s method achieves quadratic convergence (<em>q = 2</em>)
-          for simple roots and linear convergence (<em>q = 1 &minus; 1/k</em>) for multiplicity{' '}
+          for simple roots and linear convergence (<em>q = 1 − 1/k</em>) for multiplicity{' '}
           <em>k &gt; 1</em>; the secant method converges with order equal to the golden ratio (
-          <em>&phi; = (1+&radic;5)/2 &approx; 1.618</em>); and bisection guarantees linear interval
+          <em>φ = (1+√5)/2 ≈ 1.618</em>); and bisection guarantees linear interval
           halving (<em>q = 1</em>). Combining Cauchy &amp; Fujiwara root bounds, critical-point
           partitioning, inflection-guided Newton initialization, and bottom-up dynamic programming
           across the derivative tower, we introduce the{' '}
@@ -269,9 +269,9 @@ function App() {
             <code className="factored-code">p(x) = {pfp.factored}</code>
           </div>
           <div className="factored-banner">
-            <span className="factored-tag">Bounds (Mₚ / M&infin; / M_F):</span>
+            <span className="factored-tag">Bounds (Mₚ / M∞ / M_F):</span>
             <code className="factored-code">
-              {formatNum(pfp.cauchyBound, 2)} / {formatNum(pfp.linfBound, 2)} / {formatNum(pfp.fujiwaraBound, 2)} &rarr; &plusmn;{formatNum(pfp.tightBound, 2)}
+              {formatNum(pfp.cauchyBound, 2)} / {formatNum(pfp.linfBound, 2)} / {formatNum(pfp.fujiwaraBound, 2)} → ±{formatNum(pfp.tightBound, 2)}
             </code>
           </div>
         </div>
@@ -306,7 +306,7 @@ function App() {
             <div>
               <h2 className="panel-title">Critical-Point Partition &amp; Trajectory Visualizer</h2>
               <p className="panel-caption">
-                p(x) = {pfp.expression} &nbsp;&middot;&nbsp; p&apos;(x) = {pfp.derivative1} &nbsp;&middot;&nbsp; p&apos;&apos;(x) = {pfp.derivative2}
+                p(x) = {pfp.expression} &nbsp;·&nbsp; p&apos;(x) = {pfp.derivative1} &nbsp;·&nbsp; p&apos;&apos;(x) = {pfp.derivative2}
               </p>
             </div>
             <div className="layer-toggles">
@@ -320,7 +320,7 @@ function App() {
               </label>
               <label className="toggle-pill">
                 <input type="checkbox" checked={showPsi} onChange={(e) => setShowPsi(e.target.checked)} />
-                <span className="swatch swatch-psi" /> &Psi;ₚ(x)
+                <span className="swatch swatch-psi" /> Ψₚ(x)
               </label>
             </div>
           </div>
@@ -553,7 +553,7 @@ function App() {
                       strokeWidth="1.5"
                     />
                     <text x={ix + 7} y={iy + 14} fontSize="11" fontWeight="700" fill="#6d28d9">
-                      &gamma;={formatNum(ip, 2)}
+                      γ={formatNum(ip, 2)}
                     </text>
                   </g>
                 );
@@ -581,7 +581,7 @@ function App() {
                       fontWeight="800"
                       fill="#166534"
                     >
-                      &alpha;={formatNum(rt.root, 3)} (m={rt.multiplicity})
+                      α={formatNum(rt.root, 3)} (m={rt.multiplicity})
                     </text>
                   </g>
                 );
@@ -592,14 +592,14 @@ function App() {
           {/* Root & Critical Point Summary Cards */}
           <div className="structural-cards">
             <div className="struct-box">
-              <span className="struct-head">Real Roots &alpha;ᵢ (with Multiplicity mᵢ)</span>
+              <span className="struct-head">Real Roots αᵢ (with Multiplicity mᵢ)</span>
               <div className="badge-list">
                 {pfp.roots.length === 0 ? (
                   <span className="empty-chip">No real roots</span>
                 ) : (
                   pfp.roots.map((r, i) => (
                     <span key={i} className="math-chip root-chip">
-                      &alpha;_{i + 1} = {formatNum(r.root, 5)}{' '}
+                      α_{i + 1} = {formatNum(r.root, 5)}{' '}
                       <strong>(m = {r.multiplicity})</strong>
                     </span>
                   ))
@@ -608,7 +608,7 @@ function App() {
             </div>
 
             <div className="struct-box">
-              <span className="struct-head">Critical Points cᵢ (p&apos;(cᵢ) = 0) &amp; Inflections &gamma;ᵢ (p&apos;&apos;(&gamma;ᵢ) = 0)</span>
+              <span className="struct-head">Critical Points cᵢ (p&apos;(cᵢ) = 0) &amp; Inflections γᵢ (p&apos;&apos;(γᵢ) = 0)</span>
               <div className="badge-list">
                 {pfp.criticalPoints.map((c, i) => (
                   <span key={`c-${i}`} className="math-chip crit-chip">
@@ -617,7 +617,7 @@ function App() {
                 ))}
                 {pfp.inflectionPoints.map((g, i) => (
                   <span key={`g-${i}`} className="math-chip infl-chip">
-                    &gamma;_{i + 1} = {formatNum(g, 4)}
+                    γ_{i + 1} = {formatNum(g, 4)}
                   </span>
                 ))}
                 {pfp.criticalPoints.length === 0 && pfp.inflectionPoints.length === 0 && (
@@ -650,7 +650,7 @@ function App() {
               className={`method-tab ${activeMethod === 'secant' ? 'active' : ''}`}
               onClick={() => setActiveMethod('secant')}
             >
-              Secant (§3 · q=&phi;)
+              Secant (§3 · q=φ)
             </button>
             <button
               type="button"
@@ -667,9 +667,9 @@ function App() {
                 <h3>Algorithm 5: Polynomial Factorization Procedure</h3>
                 <p>
                   Partitions the Cauchy root bound <code>[-Mₚ, Mₚ]</code> by consecutive critical points{' '}
-                  <code>c₁ &lt; &hellip; &lt; cₖ</code>. Multiple roots are detected directly at{' '}
+                  <code>c₁ &lt; … &lt; cₖ</code>. Multiple roots are detected directly at{' '}
                   <code>p(cᵢ) = 0</code> (with multiplicity <code>mᵢ + 1</code>), while each sign-changing
-                  monotone interval <code>(cᵢ, cᵢ₊₁)</code> uses inflection points <code>&gamma; &in; Dᵢ</code>{' '}
+                  monotone interval <code>(cᵢ, cᵢ₊₁)</code> uses inflection points <code>γ ∈ Dᵢ</code>{' '}
                   (Algorithm 2) to pick a guaranteed-convergent Newton starting guess where{' '}
                   <code>sign(p(x₀)) = sign(p&apos;&apos;(x₀))</code>.
                 </p>
@@ -704,7 +704,7 @@ function App() {
                         <td>
                           {iv.convergedRoot !== null ? (
                             <strong className="root-highlight">
-                              &alpha; = {formatNum(iv.convergedRoot, 6)} ({iv.iterations} steps)
+                              α = {formatNum(iv.convergedRoot, 6)} ({iv.iterations} steps)
                             </strong>
                           ) : (
                             'No sign change'
@@ -730,7 +730,7 @@ function App() {
                     onChange={(e) => setNewtonX0(Number(e.target.value))}
                   />
                 </label>
-                <span className="formula-badge">xₙ₊₁ = xₙ &minus; p(xₙ) / p&apos;(xₙ)</span>
+                <span className="formula-badge">xₙ₊₁ = xₙ − p(xₙ) / p&apos;(xₙ)</span>
               </div>
 
               <div className="table-scroll">
@@ -741,7 +741,7 @@ function App() {
                       <th>xₙ</th>
                       <th>p(xₙ)</th>
                       <th>p&apos;(xₙ)</th>
-                      <th>|eₙ| = |xₙ &minus; &alpha;|</th>
+                      <th>|eₙ| = |xₙ − α|</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -781,7 +781,7 @@ function App() {
                     onChange={(e) => setSecantX1(Number(e.target.value))}
                   />
                 </label>
-                <span className="formula-badge">Order &phi; = (1+&radic;5)/2 &approx; 1.618</span>
+                <span className="formula-badge">Order φ = (1+√5)/2 ≈ 1.618</span>
               </div>
 
               <div className="table-scroll">
@@ -834,7 +834,7 @@ function App() {
                     onChange={(e) => setBisectR(Number(e.target.value))}
                   />
                 </label>
-                <span className="formula-badge">xₙ = (lₙ + rₙ) / 2 &middot; Order 1</span>
+                <span className="formula-badge">xₙ = (lₙ + rₙ) / 2 · Order 1</span>
               </div>
 
               <div className="table-scroll">
